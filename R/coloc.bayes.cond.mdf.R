@@ -5,7 +5,6 @@ coloc.bayes.tag.cond <- function(df1,snps=setdiff(colnames(df1),response),respon
 		return(coloc.bayes.tag(df1,snps=snps,response=response,priors=priors,r2.trim=r2.trim,pp.thr=pp.thr,quiet=quiet))
 	}
     snps <- unique(snps)
-	snps<-setdiff(snps,cond)
     n.orig <- length(snps)
     
     #generate tags using r2.trim
@@ -17,6 +16,9 @@ coloc.bayes.tag.cond <- function(df1,snps=setdiff(colnames(df1),response),respon
     for (ii in 1:n.clean){
         tagsize[ii]<-length(which(tagkey==tags[ii]))
     }
+	#remove the tags containing the SNPs we condition upon
+	whichcond<-which(names(tagkey) %in% cond)
+	tags<-tags[-whichcond]
     
     ## remove any completely predictive tags
     f1 <- as.formula(paste("Y ~", paste(tags,collapse="+")))
