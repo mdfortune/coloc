@@ -1,3 +1,4 @@
+
 #'Wrapper to use colocalization testing within a Bayesian model averaging
 #'structure for datasets with common controls.
 #'
@@ -15,7 +16,7 @@
 #'@param thr posterior probability threshold used to trim SNP list.  Only SNPs with a marginal posterior probability of inclusion greater than this with one or other trait will be included in the full BMA analysis
 #'@param nsnps number of SNPs required to model both traits.  The BMA analysis will average over all possible \code{nsnp} SNP models, subject to \code{thr} above.
 #'@param n.approx number of values at which to numerically approximate the posterior
-#'@param r2.trim for pairs SNPs with r2>\code{r2.trim}, only one SNP will be retained.  This avoids numerical instability problems caused by including two highly correlated SNPs in the model.
+#'@param r2.trim for pairs SNPs with r2 greater than \code{r2.trim}, only one SNP will be retained.  This avoids numerical instability problems caused by including two highly correlated SNPs in the model.
 #'@param quiet suppress messages about how the model spaced is trimmed for BMA
 #'@param ... other parameters passed to \code{coloc.test}
 #'@return a \code{coloc} or \code{colocBayes} object
@@ -26,7 +27,7 @@ coloc.var.bma <- function(df1,snps=setdiff(colnames(df1),response),
                       plot.coeff=FALSE,r2.trim=0.95,quiet=FALSE,...) {
     snps <- unique(snps)
     n.orig <- length(snps)
-    if(n.orig<2)
+    if(n.orig<3)
         return(1)
     prep <- prepare.df(df1, snps, r2.trim=r2.trim, dataset=1, quiet=quiet)
     df1 <- prep$df
@@ -55,6 +56,31 @@ coloc.var.bma <- function(df1,snps=setdiff(colnames(df1),response),
     #remove z_1
     binX<-binX[,-1]
     binY<-binmod[,"Y.star"]
+
+   ## remove SNPs to ensure that binX is full rank when given an intercept
+	intbinX<-cbind(Intercept=1,binX)
+	intrank<-qr(intbinX)$rank
+	if ( intrank < ncol(intbinX)){
+		#we must remove at k columns
+		k<-ncol(intbinX)-intrank
+		drop<-c()
+		for(ii in 1:n.clean) {
+			if (intrank < ncol(intbinX)){ 
+				xsub <- intbinX[,setdiff(colnames(intbinX),paste0(c("z_1.","z_2."),snps[ii]))]
+				droprank<- qr(xsub)$rank
+				if (droprank>intrank-2){
+					drop<-c(drop,snps[ii])
+					intbinX<-xsub
+					intrank<-qr(intbinX)$rank
+				}
+			}
+		}
+		bindrop<-c(paste0("z_1.",drop),paste0("z_2.",drop))
+		snps<-setdiff(snps,drop)
+		binX<-binX[,- which(colnames(binX) %in% bindrop)]
+		n.clean <- length(snps)
+	}
+
     
     ## step1, select marginally interesting single SNPs
     models <- cbind(diag(1,n.clean,n.clean),diag(1,n.clean,n.clean),rep(1,n.clean))
@@ -242,8 +268,8 @@ pcs.var.prepare <- function(X) {
 #'least threshold proportion of the variance will be selected.  Simulations
 #'suggest \code{threshold=0.8} is a good default value.
 #'@return \code{pcs.prepare} returns a \code{colocPCs} object.
-#'@export
 #'\code{pcs.model} returns a \code{glm} object.
+#'@export
 #'@author Mary Fortune
 pcs.var.model <- function(object, Y, threshold=0.8) {
   if(length(object@vars)<2)
@@ -556,7 +582,7 @@ checklikechi<-function(V){
 #'@param df1 A dataframe, containing response and potential explanatory variables for the dataset.
 #'@param snps The SNPs to consider as potential explanatory variables
 #'@param response The name of the response variable in \code{df1}
-#'@param r2.trim for pairs SNPs with r2>\code{r2.trim}, only one SNP will be retained.  This avoids numerical instability problems caused by including two highly correlated SNPs in the model.
+#'@param r2.trim for pairs SNPs with r2 greater than \code{r2.trim}, only one SNP will be retained.  This avoids numerical instability problems caused by including two highly correlated SNPs in the model.
 #'@param quiet suppress messages
 #'@return the minimum single SNP p value for each trait
 #'@author Mary Fortune
