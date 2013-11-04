@@ -17,7 +17,8 @@ coloc.bayes.tag.cond <- function(df1,snps=setdiff(colnames(df1),response),respon
         tagsize[ii]<-length(which(tagkey==tags[ii]))
     }
 	#remove the tags containing the SNPs we condition upon
-	whichcond<-which(names(tagkey) %in% cond)
+	condtag<-unique(tagkey[which(names(tagkey) %in% cond)])
+	whichcond<-which(tags %in% condtag)
 	tags<-tags[-whichcond]
     
     ## remove any completely predictive tags
